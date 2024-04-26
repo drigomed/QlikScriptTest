@@ -1,0 +1,140 @@
+SET ThousandSep='.';
+SET DecimalSep=',';
+SET MoneyThousandSep='.';
+SET MoneyDecimalSep=',';
+SET MoneyFormat='R$#.##0,00;-R$#.##0,00';
+SET TimeFormat='hh:mm:ss';
+SET DateFormat='DD/MM/YYYY';
+SET TimestampFormat='DD/MM/YYYY hh:mm:ss[.fff]';
+SET FirstWeekDay=6;
+SET BrokenWeeks=1;
+SET ReferenceDay=0;
+SET FirstMonthOfYear=1;
+SET CollationLocale='pt-BR';
+SET CreateSearchIndexOnReload=1;
+SET MonthNames='jan;fev;mar;abr;mai;jun;jul;ago;set;out;nov;dez';
+SET LongMonthNames='janeiro;fevereiro;março;abril;maio;junho;julho;agosto;setembro;outubro;novembro;dezembro';
+SET DayNames='seg;ter;qua;qui;sex;sáb;dom';
+SET LongDayNames='segunda-feira;terça-feira;quarta-feira;quinta-feira;sexta-feira;sábado;domingo';
+SET NumericalAbbreviation='3:k;6:M;9:G;12:T;15:P;18:E;21:Z;24:Y;-3:m;-6:μ;-9:n;-12:p;-15:f;-18:a;-21:z;-24:y';
+
+LIB CONNECT TO 'OpenFoodFacts';
+
+RestConnectorMasterTable:
+SQL SELECT 
+	"__KEY_root",
+	(SELECT 
+		"categories",
+		"code",
+		"ecoscore_grade",
+		"food_groups",
+		"id" AS "id_u2",
+		"image_url",
+		"lang",
+		"packaging_text",
+		"pnns_groups_1",
+		"pnns_groups_2",
+		"product_name",
+		"product_quantity",
+		"product_quantity_unit",
+		"serving_quantity",
+		"serving_quantity_unit",
+		"__KEY_products",
+		"__FK_products",
+		(SELECT 
+			"@Value",
+			"__FK_brands_tags"
+		FROM "brands_tags" FK "__FK_brands_tags" ArrayValueAlias "@Value"),
+		(SELECT 
+			"ciqual_food_code",
+			"id",
+			"percent_estimate",
+			"percent_max",
+			"percent_min",
+			"text",
+			"vegan",
+			"vegetarian",
+			"ciqual_proxy_food_code",
+			"from_palm_oil",
+			"processing",
+            "percent",
+			"origins",
+			"__KEY_ingredients",
+			"__FK_ingredients"
+		FROM "ingredients" PK "__KEY_ingredients" FK "__FK_ingredients"),
+		(SELECT 
+			"fat",
+			"salt",
+			"saturated-fat",
+			"sugars",
+			"__FK_nutrient_levels"
+		FROM "nutrient_levels" FK "__FK_nutrient_levels")
+	FROM "products" PK "__KEY_products" FK "__FK_products")
+FROM JSON (wrap on) "root" PK "__KEY_root";
+
+
+
+[brands_tags]:
+LOAD	[@Value] as Marca,
+	[__FK_brands_tags] AS [__KEY_products]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_brands_tags]);
+
+[ingredients]:
+LOAD	
+	[id] 				   as IngredienteId,
+	[percent_estimate]   as IngredientePercent_estimate,
+	[percent_max]        as IngredientePercent_max,
+	[percent_min]        as IngredientePercent_min,
+	[text]               as IngredienteText,
+	[vegan]              as IngredienteVegan,
+	[vegetarian]         as IngredienteVegetarian,
+	[ciqual_proxy_food_code]  as IngredienteCiqual_proxy_food,
+	[from_palm_oil]      as IngredienteFrom_palm_oil,
+    [ciqual_food_code]   as IngredienteCiqual_food_code,
+    [processing]         as IngredienteProcessing,
+	[percent]            as IngredientePercent,
+	[origins]            as IngredienteOrigins,
+	[__KEY_ingredients],
+	[__FK_ingredients] AS [__KEY_products]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_ingredients]);
+
+
+[nutrient_levels]:
+LOAD	
+	[fat]			as NutrientesFat,
+	[salt]			as NutrientesSalt,
+	[saturated-fat]	as NutrientesSatFat,
+	[sugars]		as NutrientesSugar,
+	[__FK_nutrient_levels] AS [__KEY_products]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_nutrient_levels]);
+
+
+[products]:
+LOAD	
+	[categories]	               as ProdutoCategories,
+	[code]	                   as ProdutoCode,
+	[ecoscore_grade]	           as ProdutoEcoscore_grade,
+	[food_groups]	               as ProdutoFood_groups,
+	[id_u2]	                   as ProdutoId,
+	[image_url]	               as ProdutoImage_url,
+	[lang]	                   as ProdutoLang,
+	[packaging_text]	           as ProdutoPackaging_text,
+	[pnns_groups_1]	           as ProdutoPnns_groups_1,
+	[pnns_groups_2]	           as ProdutoPnns_groups_2,
+	[product_name]	           as ProdutoProduct_name,
+	[product_quantity]	       as ProdutoProduct_quantity,
+	[product_quantity_unit]	   as ProdutoProduct_quantity_unit,
+	[serving_quantity]	       as ProdutoServing_quantity,
+	[serving_quantity_unit]	   as ProdutoServing_quantity_unit,
+	[__KEY_products],
+	[__FK_products] AS [__KEY_root]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_products]);
+
+
+DROP TABLE RestConnectorMasterTable;
+
+
